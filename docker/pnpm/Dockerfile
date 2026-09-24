@@ -5,9 +5,9 @@ WORKDIR /app
 COPY . .
 
 RUN corepack enable
-
 RUN pnpm install
 
-COPY . .
+COPY docker/pnpm/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
-CMD ["pnpm", "exec", "wxt", "dev", "-b", "firefox", "--host", "0.0.0.0"]
+ENTRYPOINT ["/entrypoint.sh"]

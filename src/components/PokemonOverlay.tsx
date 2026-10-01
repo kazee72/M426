@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { usePokemonPet } from '@/src/hooks/usePokemonPet';
 import { determineMood } from '@/src/utils/decay';
 import { getPokemonSpriteUrls, POKEBALL_FALLBACK_SVG } from '@/src/utils/sprites';
+import { SpeciesSelector } from './SpeciesSelector';
 
 // ─── Draggable hook ───────────────────────────────────────────────────────────
 function useDraggable(initBottom = 100, initRight = 24) {
@@ -39,7 +40,7 @@ function useDraggable(initBottom = 100, initRight = 24) {
       const dy = e.clientY - startMouse.current.y;
       if (Math.abs(dx) > 4 || Math.abs(dy) > 4) didDrag.current = true;
       const newRight  = Math.max(4, Math.min(window.innerWidth  - 215, startPos.current.right  - dx));
-      const newBottom = Math.max(4, Math.min(window.innerHeight - 190, startPos.current.bottom + dy));
+      const newBottom = Math.max(4, Math.min(window.innerHeight - 190, startPos.current.bottom - dy));
       setPos({ right: newRight, bottom: newBottom });
     };
     const onUp = () => {
@@ -97,6 +98,7 @@ export function PokemonOverlay() {
   const { state, loading, lastFeedback, actions } = usePokemonPet();
   const [visible,   setVisible]   = useState(true);
   const [panelOpen, setPanelOpen] = useState(false);
+  const [showSelector, setShowSelector] = useState(false);
   const { pos, startDrag, didDrag } = useDraggable(100, 24);
 
   // Stop bubbling only at the widget boundary (bubble phase = after children handled it)
@@ -285,9 +287,37 @@ export function PokemonOverlay() {
                   }} />
                 </div>
               </div>
+              
+              <div style={{ marginTop: '8px' }}>
+                <button
+                  onClick={(e) => { e.stopPropagation(); setShowSelector(true); }}
+                  style={{
+                    width: '100%',
+                    background: '#1e293b',
+                    color: '#94a3b8',
+                    border: '1px solid #334155',
+                    borderRadius: '8px',
+                    padding: '4px',
+                    fontSize: '10px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Change Pokémon
+                </button>
+              </div>
 
             </div>
           )}
+        </div>
+      )}
+
+      {showSelector && (
+        <div onMouseDown={stopBubble} onClick={stopBubble}>
+          <SpeciesSelector
+            currentSpecies={state.species}
+            onClose={() => setShowSelector(false)}
+            onSelectSpecies={actions.changeSpecies}
+          />
         </div>
       )}
     </>

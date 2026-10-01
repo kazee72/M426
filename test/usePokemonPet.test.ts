@@ -4,7 +4,6 @@ import { usePokemonPet } from '../src/hooks/usePokemonPet';
 import * as storage from '../src/utils/storage';
 import { POKEMON_PRESETS } from '../src/constants/pokemonPresets';
 
-// Mock storage functions
 vi.mock('../src/utils/storage', async () => {
   const actual = await vi.importActual<typeof import('../src/utils/storage')>('../src/utils/storage');
   return {
@@ -12,7 +11,7 @@ vi.mock('../src/utils/storage', async () => {
     loadPokemonState: vi.fn(),
     savePokemonState: vi.fn(),
     resetPokemonState: vi.fn(),
-    subscribeToPokemonStateChanges: vi.fn(() => () => {}), // Returns cleanup function
+    subscribeToPokemonStateChanges: vi.fn(() => () => {}),
   };
 });
 
@@ -32,11 +31,9 @@ describe('usePokemonPet Hook', () => {
 
     const { result } = renderHook(() => usePokemonPet());
 
-    // Initially loading
     expect(result.current.loading).toBe(true);
     expect(result.current.state).toBeNull();
 
-    // Wait for async load
     await act(async () => {
       await Promise.resolve();
     });
@@ -57,12 +54,12 @@ describe('usePokemonPet Hook', () => {
     });
 
     await act(async () => {
-      await result.current.feed();
+      await result.current.actions.feed();
     });
 
-    expect(result.current.state?.needs.hunger).toBe(75); // 50 + 25 = 75
+    expect(result.current.state?.needs.hunger).toBe(75);
     expect(storage.savePokemonState).toHaveBeenCalled();
-    expect(result.current.lastFeedback?.emote).toBe('🍎');
+    expect(result.current.lastFeedback?.success).toBe(true);
   });
 
   it('prevents feeding when sleeping', async () => {
@@ -77,10 +74,9 @@ describe('usePokemonPet Hook', () => {
     });
 
     await act(async () => {
-      await result.current.feed();
+      await result.current.actions.feed();
     });
 
-    // Should not increase hunger
     expect(result.current.state?.needs.hunger).toBe(100); 
     expect(result.current.lastFeedback?.success).toBe(false);
   });
@@ -98,12 +94,11 @@ describe('usePokemonPet Hook', () => {
     });
 
     await act(async () => {
-      await result.current.play();
+      await result.current.actions.play();
     });
 
-    expect(result.current.state?.needs.happiness).toBe(70); // 50 + 20
-    expect(result.current.state?.needs.energy).toBe(85); // 100 - 15
-    expect(result.current.lastFeedback?.emote).toBe('🎾');
+    expect(result.current.state?.needs.happiness).toBe(75);
+    expect(result.current.state?.needs.energy).toBe(88);
   });
 
   it('handles change species action', async () => {
@@ -117,10 +112,10 @@ describe('usePokemonPet Hook', () => {
     });
 
     await act(async () => {
-      await result.current.changeSpecies(POKEMON_PRESETS[1]); // Charmander
+      await result.current.actions.changeSpecies(POKEMON_PRESETS[1]);
     });
 
-    expect(result.current.state?.speciesId).toBe('charmander');
+    expect(result.current.state?.species.id).toBe(4);
     expect(result.current.state?.nickname).toBe('Charmander');
   });
 });

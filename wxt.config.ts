@@ -1,10 +1,17 @@
 import { defineConfig } from "wxt";
 
-// See https://wxt.dev/api/config.html
 export default defineConfig({
   modules: ["@wxt-dev/module-react"],
+  manifest: {
+    name: "PokéPet - Virtual Pokémon Companion",
+    description: "Virtual Pokémon pet inside your browser with animated sprites and a decaying needs system.",
+    permissions: ["storage", "alarms", "activeTab", "scripting"],
+    action: {
+      default_title: "Toggle PokéPet overlay",
+    },
+  },
   webExt: {
-    disabled: true, // don't try to launch a browser
+    disabled: true,
   },
   dev: {
     server: {

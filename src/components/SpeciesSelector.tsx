@@ -47,6 +47,7 @@ export const SpeciesSelector: React.FC<SpeciesSelectorProps> = ({
         position: 'fixed',
         inset: 0,
         zIndex: 50,
+        pointerEvents: 'auto',
         background: 'rgba(0, 0, 0, 0.75)',
         backdropFilter: 'blur(3px)',
         display: 'flex',

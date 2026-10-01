@@ -29,6 +29,9 @@ jobs:
       - name: Type check
         run: pnpm compile
 
+      - name: Test
+        run: pnpm test
+
       - name: Build (Chrome MV3)
         run: pnpm build
 

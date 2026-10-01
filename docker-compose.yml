@@ -1,5 +1,7 @@
 services:
   dev:
+    env_file:
+      - .env
     build: ./docker/pnpm/
     ports:
       - "3000:3000"

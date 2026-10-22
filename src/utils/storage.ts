@@ -3,6 +3,13 @@ import type { PokemonSpecies, PokemonState } from '../types/pokemon';
 import { calculateDecayedState } from './decay';
 
 const STORAGE_KEY = 'pokemon_pet_state_v1';
+const UI_PREFS_KEY = 'pokemon_pet_ui_prefs_v1';
+
+export interface OverlayUiPrefs {
+  bottom: number;
+  right: number;
+  visible: boolean;
+}
 
 export function createInitialPokemonState(species: PokemonSpecies = DEFAULT_POKEMON_SPECIES): PokemonState {
   const now = Date.now();
@@ -132,6 +139,71 @@ export function subscribeToPokemonStateChanges(callback: (state: PokemonState) =
       } catch {
         // ignore parse error
       }
+    }
+  };
+
+  if (storage?.onChanged) {
+    storage.onChanged.addListener(extensionListener);
+  } else if (typeof window !== 'undefined') {
+    window.addEventListener('storage', windowListener);
+  }
+
+  return () => {
+    if (storage?.onChanged) {
+      storage.onChanged.removeListener(extensionListener);
+    } else if (typeof window !== 'undefined') {
+      window.removeEventListener('storage', windowListener);
+    }
+  };
+}
+
+/**
+ * Loads and syncs UI position & visibility across all tabs.
+ */
+export async function loadOverlayUiPrefs(defaults: OverlayUiPrefs = { bottom: 100, right: 24, visible: true }): Promise<OverlayUiPrefs> {
+  const storage = getStorageApi();
+  try {
+    if (storage?.local) {
+      const res = await storage.local.get(UI_PREFS_KEY);
+      if (res && res[UI_PREFS_KEY]) {
+        return { ...defaults, ...(res[UI_PREFS_KEY] as Partial<OverlayUiPrefs>) };
+      }
+    } else if (typeof window !== 'undefined' && window.localStorage) {
+      const raw = window.localStorage.getItem(UI_PREFS_KEY);
+      if (raw) {
+        return { ...defaults, ...(JSON.parse(raw) as Partial<OverlayUiPrefs>) };
+      }
+    }
+  } catch { /**/ }
+  return defaults;
+}
+
+export async function saveOverlayUiPrefs(prefs: OverlayUiPrefs): Promise<void> {
+  const storage = getStorageApi();
+  try {
+    if (storage?.local) {
+      await storage.local.set({ [UI_PREFS_KEY]: prefs });
+    }
+    if (typeof window !== 'undefined' && window.localStorage) {
+      window.localStorage.setItem(UI_PREFS_KEY, JSON.stringify(prefs));
+    }
+  } catch { /**/ }
+}
+
+export function subscribeToOverlayUiPrefs(callback: (prefs: OverlayUiPrefs) => void): () => void {
+  const storage = getStorageApi();
+
+  const extensionListener = (changes: Record<string, { newValue?: unknown }>, areaName: string) => {
+    if (areaName === 'local' && changes[UI_PREFS_KEY]?.newValue) {
+      callback(changes[UI_PREFS_KEY].newValue as OverlayUiPrefs);
+    }
+  };
+
+  const windowListener = (event: StorageEvent) => {
+    if (event.key === UI_PREFS_KEY && event.newValue) {
+      try {
+        callback(JSON.parse(event.newValue) as OverlayUiPrefs);
+      } catch { /**/ }
     }
   };
 

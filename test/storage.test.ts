@@ -2,7 +2,9 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { 
   createInitialPokemonState, 
   savePokemonState, 
-  loadPokemonState
+  loadPokemonState,
+  loadOverlayUiPrefs,
+  saveOverlayUiPrefs,
 } from '../src/utils/storage';
 
 const mockChromeStorage = {
@@ -62,5 +64,18 @@ describe('storage utility', () => {
     const loaded = await loadPokemonState();
     expect(loaded).toBeDefined();
     expect(loaded.species.id).toBe(25);
+  });
+
+  it('saves and loads overlay UI preferences across tabs', async () => {
+    const prefs = { bottom: 150, right: 40, visible: false };
+    await saveOverlayUiPrefs(prefs);
+
+    expect(mockChromeStorage.local.set).toHaveBeenCalledWith({
+      pokemon_pet_ui_prefs_v1: prefs,
+    });
+
+    mockChromeStorage.local.get.mockResolvedValue({ pokemon_pet_ui_prefs_v1: prefs });
+    const loaded = await loadOverlayUiPrefs();
+    expect(loaded).toEqual(prefs);
   });
 });

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { checkEvolution } from '../constants/pokemonPresets';
 import type { ActionFeedback, PokemonSpecies, PokemonState } from '../types/pokemon';
 import { calculateDecayedState } from '../utils/decay';
 import {
@@ -26,8 +27,17 @@ export function usePokemonPet() {
     }, 2800);
   }, []);
 
-  // Helper to apply exp and check level up
-  const addExperience = (currentState: PokemonState, expToAdd: number): { level: number; exp: number; maxExp: number; leveledUp: boolean } => {
+  // Helper to apply exp and check level up + evolution
+  const addExperience = (
+    currentState: PokemonState,
+    expToAdd: number
+  ): {
+    level: number;
+    exp: number;
+    maxExp: number;
+    leveledUp: boolean;
+    evolvedSpecies: PokemonSpecies | null;
+  } => {
     let level = currentState.level;
     let exp = currentState.experience + expToAdd;
     let maxExp = currentState.maxExperience;
@@ -40,7 +50,9 @@ export function usePokemonPet() {
       leveledUp = true;
     }
 
-    return { level, exp, maxExp, leveledUp };
+    const evolvedSpecies = leveledUp ? checkEvolution(currentState.species, level) : null;
+
+    return { level, exp, maxExp, leveledUp, evolvedSpecies };
   };
 
   // 1. Initial Load & Storage Subscription
@@ -99,6 +111,20 @@ export function usePokemonPet() {
     return () => window.clearInterval(interval);
   }, []); // stable — never re-runs
 
+  // Helper to apply evolution changes if any
+  const applyEvolutionIfNeeded = (
+    baseState: PokemonState,
+    evolvedSpecies: PokemonSpecies | null
+  ): { species: PokemonSpecies; nickname: string } => {
+    if (!evolvedSpecies) {
+      return { species: baseState.species, nickname: baseState.nickname };
+    }
+    const hadDefaultName = baseState.nickname.toLowerCase() === baseState.species.displayName.toLowerCase();
+    return {
+      species: evolvedSpecies,
+      nickname: hadDefaultName ? evolvedSpecies.displayName : baseState.nickname,
+    };
+  };
 
   // Actions
   const feed = useCallback(async () => {
@@ -124,10 +150,19 @@ export function usePokemonPet() {
 
     const newHunger = Math.min(100, Math.round(state.needs.hunger + 25));
     const newHappiness = Math.min(100, Math.round(state.needs.happiness + 5));
-    const { level, exp, maxExp, leveledUp } = addExperience(state, 8);
+    const { level, exp, maxExp, leveledUp, evolvedSpecies } = addExperience(state, 8);
+    const { species, nickname } = applyEvolutionIfNeeded(state, evolvedSpecies);
+
+    const statusMsg = evolvedSpecies
+      ? `Whoa! ${state.nickname} evolved into ${evolvedSpecies.displayName}! 🎊`
+      : leveledUp
+      ? `Level UP! ${nickname} reached Level ${level}! 🌟`
+      : `Yummy! ${nickname} happily munched on a Berry! (+25 Hunger)`;
 
     const updated: PokemonState = {
       ...state,
+      species,
+      nickname,
       level,
       experience: exp,
       maxExperience: maxExp,
@@ -137,10 +172,8 @@ export function usePokemonPet() {
         happiness: newHappiness,
       },
       lastUpdated: Date.now(),
-      statusMessage: leveledUp
-        ? `Level UP! ${state.nickname} reached Level ${level}! 🌟`
-        : `Yummy! ${state.nickname} happily munched on a Berry! (+25 Hunger)`,
-      currentEmote: leveledUp ? '🌟' : '🍎',
+      statusMessage: statusMsg,
+      currentEmote: evolvedSpecies ? '🎊' : leveledUp ? '🌟' : '🍎',
     };
 
     setState(updated);
@@ -148,8 +181,12 @@ export function usePokemonPet() {
 
     triggerFeedback({
       success: true,
-      message: leveledUp ? `LEVEL UP! Level ${level}!` : `Fed ${state.nickname}! (+25 Hunger, +8 EXP)`,
-      emote: leveledUp ? '🌟' : '🍎',
+      message: evolvedSpecies
+        ? `EVOLVED into ${evolvedSpecies.displayName}!`
+        : leveledUp
+        ? `LEVEL UP! Level ${level}!`
+        : `Fed ${nickname}! (+25 Hunger, +8 EXP)`,
+      emote: evolvedSpecies ? '🎊' : leveledUp ? '🌟' : '🍎',
       expGained: 8,
     });
   }, [state, triggerFeedback]);
@@ -178,10 +215,19 @@ export function usePokemonPet() {
     const newHappiness = Math.min(100, Math.round(state.needs.happiness + 25));
     const newEnergy = Math.max(0, Math.round(state.needs.energy - 12));
     const newHunger = Math.max(0, Math.round(state.needs.hunger - 6));
-    const { level, exp, maxExp, leveledUp } = addExperience(state, 15);
+    const { level, exp, maxExp, leveledUp, evolvedSpecies } = addExperience(state, 15);
+    const { species, nickname } = applyEvolutionIfNeeded(state, evolvedSpecies);
+
+    const statusMsg = evolvedSpecies
+      ? `Whoa! ${state.nickname} evolved into ${evolvedSpecies.displayName}! 🎊`
+      : leveledUp
+      ? `Level UP! ${nickname} reached Level ${level}! 🌟`
+      : `${nickname} had a blast playing with you! (+25 Fun)`;
 
     const updated: PokemonState = {
       ...state,
+      species,
+      nickname,
       level,
       experience: exp,
       maxExperience: maxExp,
@@ -191,10 +237,8 @@ export function usePokemonPet() {
         happiness: newHappiness,
       },
       lastUpdated: Date.now(),
-      statusMessage: leveledUp
-        ? `Level UP! ${state.nickname} reached Level ${level}! 🌟`
-        : `${state.nickname} had a blast playing with you! (+25 Fun)`,
-      currentEmote: leveledUp ? '🌟' : '🎾',
+      statusMessage: statusMsg,
+      currentEmote: evolvedSpecies ? '🎊' : leveledUp ? '🌟' : '🎾',
     };
 
     setState(updated);
@@ -202,8 +246,12 @@ export function usePokemonPet() {
 
     triggerFeedback({
       success: true,
-      message: leveledUp ? `LEVEL UP! Level ${level}!` : `Played with ${state.nickname}! (+25 Fun, -12 Energy)`,
-      emote: leveledUp ? '🌟' : '🎾',
+      message: evolvedSpecies
+        ? `EVOLVED into ${evolvedSpecies.displayName}!`
+        : leveledUp
+        ? `LEVEL UP! Level ${level}!`
+        : `Played with ${nickname}! (+25 Fun, -12 Energy)`,
+      emote: evolvedSpecies ? '🎊' : leveledUp ? '🌟' : '🎾',
       expGained: 15,
     });
   }, [state, triggerFeedback]);
@@ -246,10 +294,13 @@ export function usePokemonPet() {
     }
 
     const newHappiness = Math.min(100, Math.round(state.needs.happiness + 8));
-    const { level, exp, maxExp, leveledUp } = addExperience(state, 4);
+    const { level, exp, maxExp, leveledUp, evolvedSpecies } = addExperience(state, 4);
+    const { species, nickname } = applyEvolutionIfNeeded(state, evolvedSpecies);
 
     const updated: PokemonState = {
       ...state,
+      species,
+      nickname,
       level,
       experience: exp,
       maxExperience: maxExp,
@@ -258,8 +309,10 @@ export function usePokemonPet() {
         happiness: newHappiness,
       },
       lastUpdated: Date.now(),
-      statusMessage: `${state.nickname} leans into your hand happily! 💖`,
-      currentEmote: '💖',
+      statusMessage: evolvedSpecies
+        ? `Whoa! ${state.nickname} evolved into ${evolvedSpecies.displayName}! 🎊`
+        : `${nickname} leans into your hand happily! 💖`,
+      currentEmote: evolvedSpecies ? '🎊' : leveledUp ? '🌟' : '💖',
     };
 
     setState(updated);
@@ -267,8 +320,12 @@ export function usePokemonPet() {
 
     triggerFeedback({
       success: true,
-      message: `Petted ${state.nickname}! 💖 (+8 Happiness)`,
-      emote: '💖',
+      message: evolvedSpecies
+        ? `EVOLVED into ${evolvedSpecies.displayName}!`
+        : leveledUp
+        ? `LEVEL UP! Level ${level}!`
+        : `Petted ${nickname}! 💖 (+8 Happiness)`,
+      emote: evolvedSpecies ? '🎊' : leveledUp ? '🌟' : '💖',
       expGained: 4,
     });
   }, [state, triggerFeedback]);
@@ -307,7 +364,12 @@ export function usePokemonPet() {
 
     setState(updated);
     await savePokemonState(updated);
-  }, [state]);
+    triggerFeedback({
+      success: true,
+      message: `Renamed to ${trimmed}! ✏️`,
+      emote: '✨',
+    });
+  }, [state, triggerFeedback]);
 
   const resetAllStats = useCallback(async () => {
     if (!state) return;
@@ -334,7 +396,7 @@ export function usePokemonPet() {
 
     triggerFeedback({
       success: true,
-      message: `Fast-forwarded ${hours} hour(s) of offline time!`,
+      message: `Fast-forwarded ${hours}h of offline time!`,
       emote: '⏳',
     });
   }, [state, triggerFeedback]);

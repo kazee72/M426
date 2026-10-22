@@ -2,7 +2,7 @@ import { renderHook, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { usePokemonPet } from '../src/hooks/usePokemonPet';
 import * as storage from '../src/utils/storage';
-import { POKEMON_PRESETS } from '../src/constants/pokemonPresets';
+import { POKEMON_PRESETS, checkEvolution } from '../src/constants/pokemonPresets';
 
 vi.mock('../src/utils/storage', async () => {
   const actual = await vi.importActual<typeof import('../src/utils/storage')>('../src/utils/storage');
@@ -15,7 +15,7 @@ vi.mock('../src/utils/storage', async () => {
   };
 });
 
-describe('usePokemonPet Hook', () => {
+describe('usePokemonPet Hook & Evolution', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useFakeTimers();
@@ -112,10 +112,41 @@ describe('usePokemonPet Hook', () => {
     });
 
     await act(async () => {
-      await result.current.actions.changeSpecies(POKEMON_PRESETS[1]);
+      await result.current.actions.changeSpecies(POKEMON_PRESETS[1]!);
     });
 
     expect(result.current.state?.species.id).toBe(4);
     expect(result.current.state?.nickname).toBe('Charmander');
+  });
+
+  it('evolves Charmander into Charmeleon upon reaching level 5', async () => {
+    const charmander = POKEMON_PRESETS[1]!; // id: 4
+    const initialState = storage.createInitialPokemonState(charmander);
+    initialState.level = 4;
+    initialState.experience = 95;
+    initialState.maxExperience = 100;
+    (storage.loadPokemonState as any).mockResolvedValue(initialState);
+
+    const { result } = renderHook(() => usePokemonPet());
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      await result.current.actions.play(); // +15 EXP -> Level 5!
+    });
+
+    expect(result.current.state?.level).toBe(5);
+    expect(result.current.state?.species.id).toBe(5);
+    expect(result.current.state?.species.name).toBe('charmeleon');
+    expect(result.current.state?.nickname).toBe('Charmeleon');
+  });
+
+  it('checkEvolution returns correct multi-stage evolution', () => {
+    const bulbasaur = POKEMON_PRESETS[2]!; // id: 1
+    expect(checkEvolution(bulbasaur, 3)).toBeNull();
+    expect(checkEvolution(bulbasaur, 5)?.name).toBe('ivysaur');
+    expect(checkEvolution(bulbasaur, 10)?.name).toBe('venusaur');
   });
 });

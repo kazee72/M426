@@ -2,33 +2,59 @@ import React, { useEffect, useRef, useState } from 'react';
 import { usePokemonPet } from '@/src/hooks/usePokemonPet';
 import { determineMood } from '@/src/utils/decay';
 import { getPokemonSpriteUrls, POKEBALL_FALLBACK_SVG } from '@/src/utils/sprites';
+import {
+  loadOverlayUiPrefs,
+  saveOverlayUiPrefs,
+  subscribeToOverlayUiPrefs,
+} from '@/src/utils/storage';
 import { SpeciesSelector } from './SpeciesSelector';
 
-// ─── Draggable hook ───────────────────────────────────────────────────────────
-function useDraggable(initBottom = 100, initRight = 24) {
-  const POS_KEY = 'pokepet_pos';
+// ─── Draggable & Cross-Tab Synced UI Prefs Hook ───────────────────────────────
+function useOverlayUiPrefs(initBottom = 100, initRight = 24) {
+  const clamp = (bottom: number, right: number) => ({
+    right: Math.max(8, Math.min((typeof window !== 'undefined' ? window.innerWidth : 1024) - 215, right)),
+    bottom: Math.max(68, Math.min((typeof window !== 'undefined' ? window.innerHeight : 768) - 190, bottom)),
+  });
 
-  const load = (): { bottom: number; right: number } => {
-    try {
-      const raw = localStorage.getItem(POS_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw) as { bottom: number; right: number };
-        if (typeof parsed.bottom === 'number' && typeof parsed.right === 'number') {
-          return {
-            right: Math.max(8, Math.min(window.innerWidth - 215, parsed.right)),
-            bottom: Math.max(68, Math.min(window.innerHeight - 190, parsed.bottom)),
-          };
-        }
-      }
-    } catch { /**/ }
-    return { bottom: initBottom, right: initRight };
+  const [pos, setPos]         = useState<{ bottom: number; right: number }>({ bottom: initBottom, right: initRight });
+  const [visible, setVisible] = useState(true);
+
+  const isDragging = useRef(false);
+  const didDrag    = useRef(false);
+  const startMouse = useRef({ x: 0, y: 0 });
+  const startPos   = useRef({ bottom: 0, right: 0 });
+  const visibleRef = useRef(visible);
+  visibleRef.current = visible;
+  const posRef = useRef(pos);
+  posRef.current = pos;
+
+  useEffect(() => {
+    let mounted = true;
+    loadOverlayUiPrefs({ bottom: initBottom, right: initRight, visible: true }).then((prefs) => {
+      if (!mounted) return;
+      setPos(clamp(prefs.bottom, prefs.right));
+      setVisible(prefs.visible);
+    });
+
+    const unsub = subscribeToOverlayUiPrefs((prefs) => {
+      if (!mounted || isDragging.current) return;
+      setPos(clamp(prefs.bottom, prefs.right));
+      setVisible(prefs.visible);
+    });
+
+    return () => {
+      mounted = false;
+      unsub();
+    };
+  }, [initBottom, initRight]);
+
+  const toggleVisible = () => {
+    setVisible(v => {
+      const next = !v;
+      saveOverlayUiPrefs({ ...posRef.current, visible: next });
+      return next;
+    });
   };
-
-  const [pos, setPos] = useState(load);
-  const isDragging  = useRef(false);
-  const didDrag     = useRef(false);
-  const startMouse  = useRef({ x: 0, y: 0 });
-  const startPos    = useRef({ bottom: 0, right: 0 });
 
   // Called from drag-handle elements only
   const startDrag = (e: React.MouseEvent) => {
@@ -47,23 +73,19 @@ function useDraggable(initBottom = 100, initRight = 24) {
       const dx = e.clientX - startMouse.current.x;
       const dy = e.clientY - startMouse.current.y;
       if (Math.abs(dx) > 4 || Math.abs(dy) > 4) didDrag.current = true;
-      const newRight  = Math.max(8, Math.min(window.innerWidth  - 215, startPos.current.right  - dx));
-      const newBottom = Math.max(68, Math.min(window.innerHeight - 190, startPos.current.bottom - dy));
-      setPos({ right: newRight, bottom: newBottom });
+      const clamped = clamp(startPos.current.bottom - dy, startPos.current.right - dx);
+      setPos(clamped);
     };
     const onUp = () => {
       if (!isDragging.current) return;
       isDragging.current = false;
       setPos(p => {
-        try { localStorage.setItem(POS_KEY, JSON.stringify(p)); } catch { /**/ }
+        saveOverlayUiPrefs({ ...p, visible: visibleRef.current });
         return p;
       });
     };
     const onResize = () => {
-      setPos(p => ({
-        right: Math.max(8, Math.min(window.innerWidth - 215, p.right)),
-        bottom: Math.max(68, Math.min(window.innerHeight - 190, p.bottom)),
-      }));
+      setPos(p => clamp(p.bottom, p.right));
     };
     // Use window-level listeners (not capture) so they don't block children
     window.addEventListener('mousemove', onMove);
@@ -76,7 +98,7 @@ function useDraggable(initBottom = 100, initRight = 24) {
     };
   }, []);
 
-  return { pos, startDrag, didDrag };
+  return { pos, visible, toggleVisible, startDrag, didDrag };
 }
 
 // ─── Sprite with fallback cascade ────────────────────────────────────────────
@@ -126,10 +148,11 @@ function barColor(v: number) {
 // ─── Main overlay ─────────────────────────────────────────────────────────────
 export function PokemonOverlay() {
   const { state, loading, lastFeedback, actions } = usePokemonPet();
-  const [visible,   setVisible]   = useState(true);
-  const [panelOpen, setPanelOpen] = useState(false);
+  const [panelOpen, setPanelOpen]       = useState(false);
   const [showSelector, setShowSelector] = useState(false);
-  const { pos, startDrag, didDrag } = useDraggable(100, 24);
+  const [editingName, setEditingName]   = useState(false);
+  const [nameDraft, setNameDraft]       = useState('');
+  const { pos, visible, toggleVisible, startDrag, didDrag } = useOverlayUiPrefs(100, 24);
 
   // Stop bubbling only at the widget boundary (bubble phase = after children handled it)
   // This prevents page-level click listeners from firing, but allows children to work normally
@@ -143,8 +166,22 @@ export function PokemonOverlay() {
 
   const handleNameplateClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (didDrag.current) return;
+    if (didDrag.current || editingName) return;
     setPanelOpen(o => !o);
+  };
+
+  const startEditingNickname = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!state) return;
+    setNameDraft(state.nickname);
+    setEditingName(true);
+  };
+
+  const commitNickname = () => {
+    setEditingName(false);
+    if (nameDraft.trim()) {
+      actions.setCustomNickname(nameDraft);
+    }
   };
 
   if (loading || !state) {
@@ -164,13 +201,17 @@ export function PokemonOverlay() {
   const spriteUrls = getPokemonSpriteUrls(state.species);
   const expPct     = Math.min(100, (state.experience / state.maxExperience) * 100);
 
+  // Smart panel anchor: if pet is low on the screen (bottom < 250px), open panel ABOVE the sprite
+  // Otherwise open BELOW the nameplate so the sprite never jumps around!
+  const openUpwards = pos.bottom < 250;
+
   return (
     <>
       {/* ── Hide/show toggle ────────────────────────────────────────────────── */}
       <div
         className="pokepet-toggle"
         style={{ bottom: Math.max(8, pos.bottom - 56), right: pos.right }}
-        onClick={(e) => { e.stopPropagation(); setVisible(v => !v); }}
+        onClick={(e) => { e.stopPropagation(); toggleVisible(); }}
         title={visible ? 'Hide PokéPet' : 'Show PokéPet'}
       >
         {visible ? '👁️' : '⚡'}
@@ -205,25 +246,84 @@ export function PokemonOverlay() {
             )}
           </div>
 
-          {/* ── Name plate: draggable + panel toggle ── */}
+          {/* ── Name plate: draggable + panel toggle + inline rename ── */}
           <div
             className="pokepet-nameplate"
-            onMouseDown={startDrag}
+            onMouseDown={editingName ? stopBubble : startDrag}
             onClick={handleNameplateClick}
             title="Click to open controls  •  Drag to move"
           >
             <span className="pokepet-mood-emoji">{mood.emoji}</span>
-            <span className="pokepet-name">{state.nickname}</span>
+            {editingName ? (
+              <input
+                type="text"
+                value={nameDraft}
+                autoFocus
+                maxLength={14}
+                onChange={e => setNameDraft(e.target.value)}
+                onBlur={commitNickname}
+                onKeyDown={e => {
+                  e.stopPropagation();
+                  if (e.key === 'Enter') commitNickname();
+                  if (e.key === 'Escape') setEditingName(false);
+                }}
+                onClick={stopBubble}
+                style={{
+                  width: '76px',
+                  background: '#020617',
+                  color: '#f8fafc',
+                  border: '1px solid #6366f1',
+                  borderRadius: '4px',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  padding: '1px 4px',
+                  outline: 'none',
+                }}
+              />
+            ) : (
+              <span
+                className="pokepet-name"
+                onDoubleClick={startEditingNickname}
+                title="Double-click to rename"
+              >
+                {state.nickname}
+              </span>
+            )}
+            {!editingName && (
+              <span
+                onClick={startEditingNickname}
+                title="Rename Pokémon"
+                style={{ fontSize: '9px', opacity: 0.55, cursor: 'pointer' }}
+              >
+                ✏️
+              </span>
+            )}
             <span className="pokepet-level">Lv.{state.level}</span>
             <span style={{ marginLeft: 'auto', fontSize: '9px', opacity: 0.5 }}>
-              {panelOpen ? '▲' : '▼'}
+              {panelOpen ? (openUpwards ? '▼' : '▲') : (openUpwards ? '▲' : '▼')}
             </span>
           </div>
 
-          {/* ── Controls panel — closes only with ✕ button ── */}
+          {/* ── Controls panel — anchored floating card so sprite never jumps! ── */}
           {panelOpen && (
-            <div className="pokepet-needs-panel">
-
+            <div
+              className="pokepet-needs-panel"
+              style={
+                openUpwards
+                  ? {
+                      position: 'absolute',
+                      bottom: 'calc(100% + 8px)',
+                      left: 0,
+                      marginTop: 0,
+                    }
+                  : {
+                      position: 'absolute',
+                      top: 'calc(100% + 6px)',
+                      left: 0,
+                      marginTop: 0,
+                    }
+              }
+            >
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
                 <span style={{ fontSize: '10px', fontWeight: 700, color: '#94a3b8', letterSpacing: '0.5px' }}>
                   NEEDS &amp; ACTIONS
@@ -317,23 +417,59 @@ export function PokemonOverlay() {
                   }} />
                 </div>
               </div>
-              
-              <div style={{ marginTop: '8px' }}>
+
+              <div style={{ marginTop: '6px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 <button
                   onClick={(e) => { e.stopPropagation(); setShowSelector(true); }}
                   style={{
                     width: '100%',
                     background: '#1e293b',
-                    color: '#94a3b8',
+                    color: '#e2e8f0',
                     border: '1px solid #334155',
                     borderRadius: '8px',
                     padding: '4px',
                     fontSize: '10px',
+                    fontWeight: 600,
                     cursor: 'pointer',
                   }}
                 >
-                  Change Pokémon
+                  ⚡ Change Pokémon
                 </button>
+
+                <div style={{ display: 'flex', gap: '4px' }}>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); actions.fastForwardHours(2); }}
+                    title="Simulate 2 hours of offline time"
+                    style={{
+                      flex: 1,
+                      background: 'rgba(15, 23, 42, 0.7)',
+                      color: '#94a3b8',
+                      border: '1px solid rgba(51, 65, 85, 0.7)',
+                      borderRadius: '6px',
+                      padding: '3px',
+                      fontSize: '9px',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    ⏳ +2h Decay
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); actions.resetAllStats(); }}
+                    title="Reset stats to 100%"
+                    style={{
+                      flex: 1,
+                      background: 'rgba(15, 23, 42, 0.7)',
+                      color: '#94a3b8',
+                      border: '1px solid rgba(51, 65, 85, 0.7)',
+                      borderRadius: '6px',
+                      padding: '3px',
+                      fontSize: '9px',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    ✨ Reset 100%
+                  </button>
+                </div>
               </div>
 
             </div>

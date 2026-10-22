@@ -14,12 +14,50 @@ export const SpeciesSelector: React.FC<SpeciesSelectorProps> = ({
   onClose,
 }) => {
   const [customInput, setCustomInput] = useState('');
+  const [loadingApi, setLoadingApi] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const handleCustomSubmit = (e: React.FormEvent) => {
+  const handleCustomSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const query = customInput.trim().toLowerCase();
     if (!query) return;
 
+    setLoadingApi(true);
+    setErrorMsg(null);
+
+    try {
+      const res = await fetch(`https://pokeapi.co/api/v2/pokemon/${encodeURIComponent(query)}`);
+      if (res.ok) {
+        const data = (await res.json()) as {
+          id: number;
+          name: string;
+          types?: Array<{ type: { name: string } }>;
+        };
+        const displayName = data.name.charAt(0).toUpperCase() + data.name.slice(1);
+        const types = data.types?.map(t => t.type.name.charAt(0).toUpperCase() + t.type.name.slice(1)) ?? ['Normal'];
+
+        const verifiedSpecies: PokemonSpecies = {
+          id: data.id,
+          name: data.name,
+          displayName,
+          spriteSlug: data.name,
+          types,
+          colorTheme: '#6366f1',
+        };
+        setLoadingApi(false);
+        onSelectSpecies(verifiedSpecies);
+        onClose();
+        return;
+      } else if (res.status === 404) {
+        setLoadingApi(false);
+        setErrorMsg(`Pokémon "${customInput.trim()}" not found in Pokédex!`);
+        return;
+      }
+    } catch {
+      // Offline or blocked by page CSP — graceful fallback to offline custom species
+    }
+
+    setLoadingApi(false);
     const idNumber = parseInt(query, 10);
     const isId = !isNaN(idNumber) && idNumber > 0 && idNumber <= 1025;
 
@@ -167,12 +205,16 @@ export const SpeciesSelector: React.FC<SpeciesSelectorProps> = ({
             <input
               type="text"
               value={customInput}
-              onChange={(e) => setCustomInput(e.target.value)}
-              placeholder="e.g. psyduck or 150"
+              onChange={(e) => {
+                setCustomInput(e.target.value);
+                if (errorMsg) setErrorMsg(null);
+              }}
+              placeholder="e.g. mewtwo or 150"
+              disabled={loadingApi}
               style={{
                 flex: 1,
                 background: '#020617',
-                border: '1px solid #475569',
+                border: errorMsg ? '1px solid #ef4444' : '1px solid #475569',
                 borderRadius: '8px',
                 padding: '6px 8px',
                 fontSize: '11px',
@@ -182,6 +224,7 @@ export const SpeciesSelector: React.FC<SpeciesSelectorProps> = ({
             />
             <button
               type="submit"
+              disabled={loadingApi}
               style={{
                 background: '#f59e0b',
                 color: '#0f172a',
@@ -190,12 +233,18 @@ export const SpeciesSelector: React.FC<SpeciesSelectorProps> = ({
                 padding: '6px 12px',
                 borderRadius: '8px',
                 fontSize: '11px',
-                cursor: 'pointer',
+                cursor: loadingApi ? 'wait' : 'pointer',
+                opacity: loadingApi ? 0.7 : 1,
               }}
             >
-              Set
+              {loadingApi ? '...' : 'Set'}
             </button>
           </div>
+          {errorMsg && (
+            <div style={{ fontSize: '10px', color: '#f87171', marginTop: '2px' }}>
+              ⚠️ {errorMsg}
+            </div>
+          )}
         </form>
       </div>
     </div>

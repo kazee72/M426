@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PokéPet — Тест</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f172a 100%);
+      min-height: 100vh; color: #f1f5f9; overflow-x: hidden;
+    }
+    .page-content { max-width: 700px; margin: 0 auto; padding: 60px 24px; text-align: center; }
+    .page-content h1 { font-size: 2rem; color: #f59e0b; margin-bottom: 8px; }
+    .page-content p  { color: #94a3b8; line-height: 1.7; margin-bottom: 16px; }
+    .tip {
+      display: inline-block; background: rgba(99,102,241,0.15);
+      border: 1px solid rgba(99,102,241,0.3); border-radius: 10px;
+      padding: 8px 16px; font-size: 13px; color: #a5b4fc; margin: 4px;
+    }
+    .click-area {
+      margin-top: 32px; padding: 24px;
+      background: rgba(255,255,255,0.03); border: 1px dashed rgba(255,255,255,0.1);
+      border-radius: 16px; color: #64748b; font-size: 14px; cursor: default;
+    }
+
+    /* ═══ POKEPET WIDGET ═══ */
+    #widget {
+      position: fixed; bottom: 100px; right: 24px;
+      width: 205px; user-select: none;
+      display: flex; flex-direction: column; align-items: center;
+      z-index: 99999;
+    }
+
+    /* Sprite */
+    #spriteStage {
+      position: relative; width: 100%;
+      display: flex; flex-direction: column; align-items: center;
+      cursor: pointer;
+    }
+    .sprite-wrap {
+      width: 100px; height: 100px;
+      display: flex; align-items: center; justify-content: center; position: relative;
+    }
+    #sprite {
+      max-width: 100%; max-height: 100%; object-fit: contain; image-rendering: pixelated;
+      filter: drop-shadow(0 8px 16px rgba(0,0,0,0.5));
+      transition: transform 0.15s ease;
+      display: block;
+    }
+    #sprite:hover { transform: translateY(-3px) scale(1.06); }
+    #sprite.sleeping { filter: brightness(0.75) saturate(0.5) drop-shadow(0 8px 14px rgba(0,0,0,0.5)); }
+
+    #emote {
+      position: absolute; top: -8px; right: -8px;
+      background: rgba(255,255,255,0.95); border: 1.5px solid rgba(0,0,0,0.1);
+      border-radius: 50px; padding: 2px 8px; font-size: 15px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.25); pointer-events: none; z-index: 10;
+      white-space: nowrap; display: none;
+    }
+    #sleepOverlay {
+      position: absolute; inset: 0; display: none;
+      align-items: flex-start; justify-content: flex-end; padding: 4px; pointer-events: none;
+    }
+    .sleep-zzz { font-size: 18px; animation: ppFloat 2s ease-in-out infinite; }
+
+    /* Nameplate */
+    #nameplate {
+      display: flex; align-items: center; gap: 5px;
+      background: rgba(10,15,30,0.82); border: 1px solid rgba(255,255,255,0.12);
+      backdrop-filter: blur(8px); border-radius: 20px;
+      padding: 4px 10px 4px 8px; margin-top: 6px; cursor: pointer;
+    }
+    .pet-name  { font-size: 12px; font-weight: 700; color: #f8fafc; white-space: nowrap; }
+    .pet-level {
+      font-size: 9px; font-weight: 700; background: linear-gradient(135deg,#3b82f6,#6366f1);
+      color: #fff; padding: 1px 5px; border-radius: 6px; white-space: nowrap;
+    }
+    .pet-mood  { font-size: 13px; }
+    .pet-arrow { margin-left: auto; font-size: 9px; opacity: 0.4; }
+
+    /* Panel */
+    #panel {
+      width: 100%; background: rgba(10,15,30,0.88);
+      border: 1px solid rgba(255,255,255,0.1); backdrop-filter: blur(12px);
+      border-radius: 12px; padding: 9px 10px;
+      display: none; flex-direction: column; gap: 6px; margin-top: 6px;
+    }
+    .panel-hdr { display: flex; align-items: center; justify-content: space-between; }
+    .panel-title { font-size: 10px; font-weight: 700; color: #64748b; letter-spacing: 0.5px; }
+
+    #closeBtn {
+      background: transparent; border: 1px solid rgba(255,255,255,0.12);
+      color: #94a3b8; font-size: 10px; width: 18px; height: 18px;
+      border-radius: 4px; cursor: pointer; display: flex;
+      align-items: center; justify-content: center; line-height: 1;
+    }
+    #closeBtn:hover { background: rgba(255,255,255,0.1); color: #f1f5f9; }
+
+    #feedbackEl {
+      background: rgba(30,41,59,0.9); border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 6px; color: #cbd5e1; font-size: 10px; padding: 4px 7px;
+      text-align: center; display: none;
+    }
+
+    /* Need bars */
+    .need-row  { display: flex; align-items: center; gap: 6px; }
+    .need-icon { font-size: 11px; width: 14px; text-align: center; flex-shrink: 0; }
+    .need-track {
+      flex: 1; height: 5px; background: rgba(255,255,255,0.08);
+      border-radius: 4px; overflow: hidden;
+    }
+    .need-fill { height: 100%; border-radius: 4px; transition: width 0.5s ease; }
+    .need-val  { font-size: 9px; font-weight: 700; color: #64748b; width: 24px; text-align: right; }
+
+    /* Action buttons */
+    .actions { display: grid; grid-template-columns: repeat(4,1fr); gap: 4px; }
+    .btn {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 6px 2px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);
+      background: rgba(30,41,59,0.7); color: #e2e8f0;
+      font-size: 9px; font-weight: 600; cursor: pointer;
+      transition: background 0.15s, transform 0.1s; gap: 2px; line-height: 1;
+      font-family: inherit;
+    }
+    .btn:hover:not(:disabled) { background: rgba(51,65,85,0.9); transform: translateY(-1px); }
+    .btn:active:not(:disabled){ transform: scale(0.94) !important; }
+    .btn:disabled { opacity: 0.35; cursor: not-allowed; }
+    .btn-icon { font-size: 15px; line-height: 1; }
+    #btnFeed   { border-color: rgba(245,158,11,0.5);  color: #fcd34d; }
+    #btnPlay   { border-color: rgba(236,72,153,0.5);  color: #f472b6; }
+    #btnRest   { border-color: rgba(99,102,241,0.5);  color: #a5b4fc; }
+    #btnCuddle { border-color: rgba(244,63,94,0.5);   color: #fda4af; }
+    #btnRest.sleeping-mode { border-color: rgba(251,191,36,0.6); color: #fde68a; background: rgba(251,191,36,0.12); }
+
+    /* EXP */
+    .exp-row { display: flex; justify-content: space-between; font-size: 9px; color: #475569; margin-bottom: 3px; }
+
+    /* Toggle button */
+    #toggleBtn {
+      position: fixed; bottom: 36px; right: 24px;
+      width: 44px; height: 44px; border-radius: 50%;
+      background: rgba(10,15,30,0.85); border: 1.5px solid rgba(255,255,255,0.15);
+      backdrop-filter: blur(12px); box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px; cursor: pointer; transition: transform 0.2s; z-index: 99999;
+    }
+    #toggleBtn:hover { transform: scale(1.1); }
+
+    /* Spinner */
+    .spinner {
+      width: 28px; height: 28px; border: 3px solid rgba(245,158,11,0.3);
+      border-top-color: #f59e0b; border-radius: 50%; animation: ppSpin 0.8s linear infinite;
+    }
+
+    @keyframes ppSpin  { to { transform: rotate(360deg); } }
+    @keyframes ppFloat { 0%,100%{transform:translateY(0);opacity:.8;} 50%{transform:translateY(-6px);opacity:1;} }
+    @keyframes ppPulse { 0%,100%{opacity:1;} 50%{opacity:0.5;} }
+  </style>
+</head>
+<body>
+
+<div class="page-content">
+  <h1>⚡ PokéPet — Тест</h1>
+  <p>Питомец отображается поверх страницы снизу справа.</p>
+  <span class="tip">👆 Нажми на имя — откроется панель управления</span>
+  <span class="tip">🖱️ Тяни за спрайт или имя — перемещение</span>
+  <span class="tip">💖 Клик по спрайту — погладить</span>
+  <div class="click-area">
+    Кликай сюда сколько угодно — панель питомца не закрывается 🛡️
+  </div>
+</div>
+
+<!-- Toggle -->
+<div id="toggleBtn" title="Показать/Скрыть">👁️</div>
+
+<!-- Widget -->
+<div id="widget">
+  <div id="spriteStage">
+    <div class="sprite-wrap">
+      <div id="emote"></div>
+      <img id="sprite" src="" alt="Pokémon" />
+      <div id="sleepOverlay"><span class="sleep-zzz">💤</span></div>
+    </div>
+  </div>
+
+  <div id="nameplate">
+    <span class="pet-mood" id="moodEmoji">✨</span>
+    <span class="pet-name" id="petName">Pikachu</span>
+    <span class="pet-level" id="petLevel">Lv.1</span>
+    <span class="pet-arrow" id="panelArrow">▼</span>
+  </div>
+
+  <div id="panel">
+    <div class="panel-hdr">
+      <span class="panel-title">NEEDS &amp; ACTIONS</span>
+      <button id="closeBtn">✕</button>
+    </div>
+
+    <div id="feedbackEl"></div>
+
+    <div class="need-row">
+      <span class="need-icon">🍖</span>
+      <div class="need-track"><div class="need-fill" id="barHunger"></div></div>
+      <span class="need-val"  id="valHunger">100%</span>
+    </div>
+    <div class="need-row">
+      <span class="need-icon">⚡</span>
+      <div class="need-track"><div class="need-fill" id="barEnergy"></div></div>
+      <span class="need-val"  id="valEnergy">100%</span>
+    </div>
+    <div class="need-row">
+      <span class="need-icon">💖</span>
+      <div class="need-track"><div class="need-fill" id="barHappy"></div></div>
+      <span class="need-val"  id="valHappy">100%</span>
+    </div>
+
+    <div class="actions">
+      <button class="btn" id="btnFeed">
+        <span class="btn-icon">🍎</span><span>Feed</span>
+      </button>
+      <button class="btn" id="btnPlay">
+        <span class="btn-icon">🎾</span><span>Play</span>
+      </button>
+      <button class="btn" id="btnRest">
+        <span class="btn-icon" id="restIcon">💤</span>
+        <span id="restLabel">Rest</span>
+      </button>
+      <button class="btn" id="btnCuddle">
+        <span class="btn-icon">💖</span><span>Pet</span>
+      </button>
+    </div>
+
+    <div>
+      <div class="exp-row">
+        <span>EXP</span><span id="expLabel">0/100</span>
+      </div>
+      <div class="need-track" style="height:4px">
+        <div id="barExp" style="height:100%;width:0%;background:linear-gradient(90deg,#6366f1,#818cf8);border-radius:4px;transition:width 0.4s ease"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════
+//  CONSTANTS & STATE
+// ════════════════════════════════════════════════════
+const STATE_KEY = 'pokepet_demo_v2';
+const POS_KEY   = 'pokepet_pos';
+
+const POKEMON = [
+  { name:'pikachu',   id:25  },
+  { name:'charmander',id:4   },
+  { name:'bulbasaur', id:1   },
+  { name:'squirtle',  id:7   },
+  { name:'eevee',     id:133 },
+];
+let speciesIdx = 0;
+
+function freshState() {
+  return { hunger:100, energy:100, happiness:100, isSleeping:false,
+           lastUpdated:Date.now(), level:1, exp:0, maxExp:100 };
+}
+function loadState() {
+  try { const s = localStorage.getItem(STATE_KEY); if (s) return JSON.parse(s); } catch {}
+  return freshState();
+}
+function save(s) { localStorage.setItem(STATE_KEY, JSON.stringify(s)); }
+
+// ════════════════════════════════════════════════════
+//  DECAY
+// ════════════════════════════════════════════════════
+function applyDecay(s) {
+  const now = Date.now();
+  const h = Math.max(0, now - s.lastUpdated) / 3_600_000;
+  if (h < 0.0001) { s.lastUpdated = now; return s; }
+  if (s.isSleeping) {
+    s.energy  = Math.min(100, s.energy  + h * 25);
+    s.hunger  = Math.max(0,   s.hunger  - h * 3);
+    if (s.energy >= 100) s.isSleeping = false;
+  } else {
+    s.hunger    = Math.max(0, s.hunger    - h * 10);
+    s.energy    = Math.max(0, s.energy    - h * 8);
+    const pen   = (s.hunger < 20 || s.energy < 20) ? 1.5 : 1;
+    s.happiness = Math.max(0, s.happiness - h * 12 * pen);
+  }
+  s.lastUpdated = now;
+  return s;
+}
+function addExp(s, n) {
+  s.exp += n;
+  while (s.exp >= s.maxExp) { s.exp -= s.maxExp; s.level++; s.maxExp = Math.round(s.maxExp * 1.25); }
+}
+
+// ════════════════════════════════════════════════════
+//  SPRITE
+// ════════════════════════════════════════════════════
+function spriteUrls(p) {
+  return [
+    `https://img.pokemondb.net/sprites/black-white/anim/normal/${p.name}.gif`,
+    `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/showdown/${p.id}.gif`,
+    `https://img.pokemondb.net/sprites/bank/normal/${p.name}.png`,
+    `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${p.id}.png`,
+    `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${p.id}.png`,
+  ];
+}
+let urlIdx = 0;
+function loadSprite() {
+  const urls = spriteUrls(POKEMON[speciesIdx]);
+  urlIdx = 0;
+  const el = document.getElementById('sprite');
+  el.onerror = () => { if (urlIdx < urls.length) el.src = urls[urlIdx++]; };
+  el.src = urls[urlIdx++];
+}
+
+// ════════════════════════════════════════════════════
+//  RENDER
+// ════════════════════════════════════════════════════
+function barColor(v) {
+  if (v >= 60) return 'linear-gradient(90deg,#10b981,#34d399)';
+  if (v >= 25) return 'linear-gradient(90deg,#f59e0b,#fbbf24)';
+  return 'linear-gradient(90deg,#ef4444,#f87171)';
+}
+function getMood(s) {
+  if (s.isSleeping) return '💤';
+  const a = (s.hunger + s.energy + s.happiness) / 3;
+  if (s.hunger <= 10) return '🍖';
+  if (s.energy <= 15) return '🥱';
+  if (s.happiness <= 15) return '😢';
+  if (a >= 85) return '✨';
+  if (a >= 60) return '😊';
+  if (a >= 35) return '🙂';
+  return '😟';
+}
+
+function setBar(barId, valId, v) {
+  const bar = document.getElementById(barId);
+  const val = document.getElementById(valId);
+  bar.style.width      = v + '%';
+  bar.style.background = barColor(v);
+  bar.style.animation  = v < 25 ? 'ppPulse 1.2s ease-in-out infinite' : 'none';
+  val.textContent = Math.round(v) + '%';
+}
+
+let state = applyDecay(loadState());
+
+function render() {
+  const s = state;
+  document.getElementById('petName').textContent  = POKEMON[speciesIdx].name.charAt(0).toUpperCase() + POKEMON[speciesIdx].name.slice(1);
+  document.getElementById('petLevel').textContent = 'Lv.' + s.level;
+  document.getElementById('moodEmoji').textContent = getMood(s);
+  document.getElementById('sprite').className = s.isSleeping ? 'sleeping' : '';
+  document.getElementById('sleepOverlay').style.display = s.isSleeping ? 'flex' : 'none';
+
+  const restIcon  = document.getElementById('restIcon');
+  const restLabel = document.getElementById('restLabel');
+  const btnRest   = document.getElementById('btnRest');
+  restIcon.textContent  = s.isSleeping ? '☀️' : '💤';
+  restLabel.textContent = s.isSleeping ? 'Wake' : 'Rest';
+  btnRest.classList.toggle('sleeping-mode', s.isSleeping);
+
+  setBar('barHunger', 'valHunger', s.hunger);
+  setBar('barEnergy', 'valEnergy', s.energy);
+  setBar('barHappy',  'valHappy',  s.happiness);
+
+  document.getElementById('expLabel').textContent = s.exp + '/' + s.maxExp;
+  document.getElementById('barExp').style.width   = Math.min(100, (s.exp / s.maxExp) * 100) + '%';
+
+  document.getElementById('btnFeed').disabled   = s.isSleeping || s.hunger >= 98;
+  document.getElementById('btnPlay').disabled   = s.isSleeping || s.energy < 15;
+  document.getElementById('btnCuddle').disabled = s.isSleeping;
+}
+
+// ════════════════════════════════════════════════════
+//  FEEDBACK
+// ════════════════════════════════════════════════════
+let fbTimer = null;
+function showFeedback(icon, msg) {
+  const el = document.getElementById('feedbackEl');
+  const em = document.getElementById('emote');
+  el.textContent     = icon + ' ' + msg;
+  el.style.display   = 'block';
+  em.textContent     = icon;
+  em.style.display   = 'block';
+  clearTimeout(fbTimer);
+  fbTimer = setTimeout(() => {
+    el.style.display = 'none';
+    em.style.display = 'none';
+  }, 2500);
+}
+
+// ════════════════════════════════════════════════════
+//  PANEL OPEN / CLOSE
+// ════════════════════════════════════════════════════
+let panelOpen = false;
+function openPanel()  { document.getElementById('panel').style.display = 'flex'; document.getElementById('panelArrow').textContent = '▲'; panelOpen = true;  }
+function closePanel() { document.getElementById('panel').style.display = 'none'; document.getElementById('panelArrow').textContent = '▼'; panelOpen = false; }
+
+// ════════════════════════════════════════════════════
+//  DRAG — completely separate from clicks
+// ════════════════════════════════════════════════════
+let dragging = false;
+let didDrag  = false;
+let startX = 0, startY = 0, startBottom = 100, startRight = 24;
+
+function getPos() {
+  return {
+    bottom: parseInt(widget.style.bottom) || 100,
+    right:  parseInt(widget.style.right)  || 24,
+  };
+}
+
+// Load saved position
+(function initPos() {
+  try {
+    const p = JSON.parse(localStorage.getItem(POS_KEY) || 'null');
+    if (p) {
+      widget.style.bottom   = p.bottom + 'px';
+      widget.style.right    = p.right  + 'px';
+      toggleBtn.style.bottom = (p.bottom - 64) + 'px';
+      toggleBtn.style.right  = p.right  + 'px';
+    }
+  } catch {}
+})();
+
+function onDragStart(e) {
+  // Only left button
+  if (e.button !== 0) return;
+  // IMPORTANT: Do NOT call preventDefault() here — that would block button clicks
+  dragging = true;
+  didDrag  = false;
+  const p  = getPos();
+  startX      = e.clientX;
+  startY      = e.clientY;
+  startBottom = p.bottom;
+  startRight  = p.right;
+}
+
+// Drag handles: sprite stage and nameplate (but NOT buttons)
+document.getElementById('spriteStage').addEventListener('mousedown', onDragStart);
+document.getElementById('nameplate').addEventListener('mousedown', onDragStart);
+
+window.addEventListener('mousemove', function(e) {
+  if (!dragging) return;
+  const dx = e.clientX - startX;
+  const dy = e.clientY - startY;
+  if (Math.abs(dx) > 4 || Math.abs(dy) > 4) didDrag = true;
+  const r = Math.max(4, Math.min(window.innerWidth  - 215, startRight  - dx));
+  const b = Math.max(4, Math.min(window.innerHeight - 190, startBottom + dy));
+  widget.style.right    = r + 'px';
+  widget.style.bottom   = b + 'px';
+  toggleBtn.style.right  = r + 'px';
+  toggleBtn.style.bottom = (b - 64) + 'px';
+});
+
+window.addEventListener('mouseup', function() {
+  if (!dragging) return;
+  dragging = false;
+  const p = getPos();
+  try { localStorage.setItem(POS_KEY, JSON.stringify(p)); } catch {}
+  // Reset didDrag after a short delay so click handlers can check it
+  setTimeout(() => { didDrag = false; }, 50);
+});
+
+// ════════════════════════════════════════════════════
+//  CLICK HANDLERS
+// ════════════════════════════════════════════════════
+document.getElementById('spriteStage').addEventListener('click', function() {
+  if (didDrag) return;
+  state.happiness = Math.min(100, state.happiness + 8);
+  state.lastUpdated = Date.now();
+  addExp(state, 4);
+  save(state); render();
+  showFeedback('💖', '+8 Happiness!');
+});
+
+document.getElementById('nameplate').addEventListener('click', function() {
+  if (didDrag) return;
+  panelOpen ? closePanel() : openPanel();
+});
+
+document.getElementById('closeBtn').addEventListener('click', closePanel);
+
+document.getElementById('btnFeed').addEventListener('click', function() {
+  state.hunger    = Math.min(100, state.hunger + 25);
+  state.happiness = Math.min(100, state.happiness + 5);
+  state.lastUpdated = Date.now();
+  addExp(state, 8);
+  save(state); render();
+  showFeedback('🍎', 'Fed! (+25 Hunger)');
+});
+
+document.getElementById('btnPlay').addEventListener('click', function() {
+  state.happiness = Math.min(100, state.happiness + 25);
+  state.energy    = Math.max(0,   state.energy    - 12);
+  state.hunger    = Math.max(0,   state.hunger    - 6);
+  state.lastUpdated = Date.now();
+  addExp(state, 15);
+  save(state); render();
+  showFeedback('🎾', 'Play! (+25 Fun)');
+});
+
+document.getElementById('btnRest').addEventListener('click', function() {
+  state.isSleeping = !state.isSleeping;
+  state.lastUpdated = Date.now();
+  save(state); render();
+  showFeedback(state.isSleeping ? '💤' : '☀️', state.isSleeping ? 'Sleeping...' : 'Woke up!');
+});
+
+document.getElementById('btnCuddle').addEventListener('click', function() {
+  state.happiness = Math.min(100, state.happiness + 8);
+  state.lastUpdated = Date.now();
+  addExp(state, 4);
+  save(state); render();
+  showFeedback('💖', '+8 Happiness!');
+});
+
+document.getElementById('toggleBtn').addEventListener('click', function() {
+  const w = document.getElementById('widget');
+  const hidden = w.style.display === 'none';
+  w.style.display = hidden ? '' : 'none';
+  this.textContent = hidden ? '👁️' : '⚡';
+});
+
+// ════════════════════════════════════════════════════
+//  REAL-TIME DECAY TICK (every 3 sec)
+// ════════════════════════════════════════════════════
+setInterval(function() {
+  state = applyDecay(state);
+  save(state);
+  render();
+}, 3000);
+
+// ════════════════════════════════════════════════════
+//  INIT
+// ════════════════════════════════════════════════════
+loadSprite();
+render();
+</script>
+</body>
+</html>

@@ -11,7 +11,15 @@ function useDraggable(initBottom = 100, initRight = 24) {
   const load = (): { bottom: number; right: number } => {
     try {
       const raw = localStorage.getItem(POS_KEY);
-      if (raw) return JSON.parse(raw) as { bottom: number; right: number };
+      if (raw) {
+        const parsed = JSON.parse(raw) as { bottom: number; right: number };
+        if (typeof parsed.bottom === 'number' && typeof parsed.right === 'number') {
+          return {
+            right: Math.max(8, Math.min(window.innerWidth - 215, parsed.right)),
+            bottom: Math.max(68, Math.min(window.innerHeight - 190, parsed.bottom)),
+          };
+        }
+      }
     } catch { /**/ }
     return { bottom: initBottom, right: initRight };
   };
@@ -39,8 +47,8 @@ function useDraggable(initBottom = 100, initRight = 24) {
       const dx = e.clientX - startMouse.current.x;
       const dy = e.clientY - startMouse.current.y;
       if (Math.abs(dx) > 4 || Math.abs(dy) > 4) didDrag.current = true;
-      const newRight  = Math.max(4, Math.min(window.innerWidth  - 215, startPos.current.right  - dx));
-      const newBottom = Math.max(4, Math.min(window.innerHeight - 190, startPos.current.bottom - dy));
+      const newRight  = Math.max(8, Math.min(window.innerWidth  - 215, startPos.current.right  - dx));
+      const newBottom = Math.max(68, Math.min(window.innerHeight - 190, startPos.current.bottom - dy));
       setPos({ right: newRight, bottom: newBottom });
     };
     const onUp = () => {
@@ -51,12 +59,20 @@ function useDraggable(initBottom = 100, initRight = 24) {
         return p;
       });
     };
+    const onResize = () => {
+      setPos(p => ({
+        right: Math.max(8, Math.min(window.innerWidth - 215, p.right)),
+        bottom: Math.max(68, Math.min(window.innerHeight - 190, p.bottom)),
+      }));
+    };
     // Use window-level listeners (not capture) so they don't block children
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup',   onUp);
+    window.addEventListener('resize',    onResize);
     return () => {
       window.removeEventListener('mousemove', onMove);
       window.removeEventListener('mouseup',   onUp);
+      window.removeEventListener('resize',    onResize);
     };
   }, []);
 
@@ -67,17 +83,31 @@ function useDraggable(initBottom = 100, initRight = 24) {
 function SpriteImg({ urls, alt, isSleeping }: { urls: string[]; alt: string; isSleeping: boolean }) {
   const [idx, setIdx] = useState(0);
   const [loaded, setLoaded] = useState(false);
-  const src = idx < urls.length ? (urls[idx] ?? POKEBALL_FALLBACK_SVG) : POKEBALL_FALLBACK_SVG;
-  useEffect(() => { setIdx(0); setLoaded(false); }, [urls[0]]);
+  const isFallbackSvg = idx >= urls.length;
+  const src = !isFallbackSvg ? (urls[idx] ?? POKEBALL_FALLBACK_SVG) : POKEBALL_FALLBACK_SVG;
+
+  useEffect(() => {
+    setIdx(0);
+    setLoaded(false);
+  }, [urls[0]]);
+
+  const showImg = loaded || isFallbackSvg;
+
   return (
     <div className="pokepet-sprite-wrap">
-      {!loaded && <div className="pokepet-spinner" />}
+      {!showImg && <div className="pokepet-spinner" />}
       <img
         src={src} alt={alt}
         onLoad={() => setLoaded(true)}
-        onError={() => setIdx(i => i + 1)}
+        onError={() => {
+          if (idx < urls.length) {
+            setIdx(i => i + 1);
+          } else {
+            setLoaded(true);
+          }
+        }}
         style={{
-          display: loaded ? 'block' : 'none',
+          display: showImg ? 'block' : 'none',
           filter: isSleeping
             ? 'brightness(0.75) saturate(0.5) drop-shadow(0 8px 14px rgba(0,0,0,0.55))'
             : 'drop-shadow(0 8px 16px rgba(0,0,0,0.5))',
@@ -139,7 +169,7 @@ export function PokemonOverlay() {
       {/* ── Hide/show toggle ────────────────────────────────────────────────── */}
       <div
         className="pokepet-toggle"
-        style={{ bottom: pos.bottom - 60, right: pos.right }}
+        style={{ bottom: Math.max(8, pos.bottom - 56), right: pos.right }}
         onClick={(e) => { e.stopPropagation(); setVisible(v => !v); }}
         title={visible ? 'Hide PokéPet' : 'Show PokéPet'}
       >

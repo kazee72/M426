@@ -3,6 +3,20 @@ import type { PokemonSpecies } from '../types/pokemon';
 export function getPokemonSpriteUrls(species: PokemonSpecies): string[] {
   const slug = species.spriteSlug.toLowerCase().trim();
   const id = species.id;
+  const isCustomNameOnly = id === 9999;
+
+  if (isCustomNameOnly) {
+    return [
+      // 1. Pokémon Database animated sprite (Black/White style)
+      `https://img.pokemondb.net/sprites/black-white/anim/normal/${slug}.gif`,
+      // 2. Pokémon Showdown animated sprite (works by name!)
+      `https://play.pokemonshowdown.com/sprites/ani/${slug.replace(/[^a-z0-9]/g, '')}.gif`,
+      // 3. Pokémon Database static sprite
+      `https://img.pokemondb.net/sprites/bank/normal/${slug}.png`,
+      // 4. Pokémon Database Home static sprite
+      `https://img.pokemondb.net/sprites/home/normal/${slug}.png`,
+    ];
+  }
 
   return [
     // 1. Pokémon Database animated sprite (Black/White style - standard requested by user)

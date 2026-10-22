@@ -1,3 +1,6 @@
+import { calculateDecayedState } from '../src/utils/decay';
+import type { PokemonState } from '../src/types/pokemon';
+
 export default defineBackground(() => {
   // ── Icon click → toggle overlay visibility on the active tab ──────────────
   browser.action.onClicked.addListener(async (tab) => {
@@ -23,32 +26,17 @@ export default defineBackground(() => {
   const syncDecay = async () => {
     try {
       const data = await browser.storage.local.get('pokemon_pet_state_v1');
-      const state = data['pokemon_pet_state_v1'] as Record<string, unknown> | undefined;
-      if (!state) return;
+      const state = data['pokemon_pet_state_v1'] as PokemonState | undefined;
+      if (!state || !state.needs) return;
 
       const now = Date.now();
-      const lastUpdated = state['lastUpdated'] as number ?? now;
-      const elapsedH = Math.max(0, now - lastUpdated) / 3_600_000;
-      if (elapsedH < 0.01) return;
+      if (now - state.lastUpdated < 30_000) return;
 
-      const needs = state['needs'] as { hunger: number; energy: number; happiness: number } ?? { hunger: 100, energy: 100, happiness: 100 };
-      const isSleeping = state['isSleeping'] as boolean ?? false;
-
-      if (isSleeping) {
-        needs.energy   = Math.min(100, needs.energy   + elapsedH * 25);
-        needs.hunger   = Math.max(0,   needs.hunger   - elapsedH * 3);
-      } else {
-        needs.hunger    = Math.max(0, needs.hunger    - elapsedH * 10);
-        needs.energy    = Math.max(0, needs.energy    - elapsedH * 8);
-        const pen       = (needs.hunger < 20 || needs.energy < 20) ? 1.5 : 1;
-        needs.happiness = Math.max(0, needs.happiness - elapsedH * 12 * pen);
-      }
-
-      const updated = { ...state, needs, lastUpdated: now, isSleeping: isSleeping && needs.energy < 100 };
+      const updated = calculateDecayedState(state, now);
       await browser.storage.local.set({ 'pokemon_pet_state_v1': updated });
 
       // Show badge warning if pet is struggling
-      if (needs.hunger <= 15 || needs.energy <= 15 || needs.happiness <= 15) {
+      if (updated.needs.hunger <= 15 || updated.needs.energy <= 15 || updated.needs.happiness <= 15) {
         await browser.action.setBadgeText({ text: '!' });
         await browser.action.setBadgeBackgroundColor({ color: '#ef4444' });
       } else {

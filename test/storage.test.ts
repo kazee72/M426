@@ -18,12 +18,10 @@ const mockChromeStorage = {
   },
 };
 
-(globalThis as any).chrome = {
-  storage: mockChromeStorage,
-};
-
 describe('storage utility', () => {
   beforeEach(() => {
+    (globalThis as any).browser = { storage: mockChromeStorage };
+    (globalThis as any).chrome = { storage: mockChromeStorage };
     vi.clearAllMocks();
     vi.useFakeTimers();
     vi.setSystemTime(1000000000);

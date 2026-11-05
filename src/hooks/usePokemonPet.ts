@@ -75,7 +75,7 @@ export function usePokemonPet() {
       }
     }
 
-    init();
+    void init();
 
     // Sync with external updates
     const unsubscribe = subscribeToPokemonStateChanges((newState) => {
@@ -105,10 +105,10 @@ export function usePokemonPet() {
       const now = Date.now();
       if (now - prev.lastUpdated < 1000) return;
       const updated = calculateDecayedState(prev, now);
-      savePokemonState(updated);
+      void savePokemonState(updated);
       setState(updated);
     }, 3000);
-    return () => window.clearInterval(interval);
+    return () => { window.clearInterval(interval); };
   }, []); // stable — never re-runs
 
   // Helper to apply evolution changes if any

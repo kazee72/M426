@@ -18,7 +18,7 @@ export const DebugSimulator: React.FC<DebugSimulatorProps> = ({
   return (
     <div style={{ width: '100%', paddingTop: '4px' }}>
       <button
-        onClick={() => setOpen(!open)}
+        onClick={() => { setOpen(!open); }}
         style={{
           width: '100%',
           textAlign: 'center',
@@ -63,7 +63,7 @@ export const DebugSimulator: React.FC<DebugSimulatorProps> = ({
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '4px' }}>
             <button
-              onClick={() => onFastForward(1)}
+              onClick={() => { onFastForward(1); }}
               style={{
                 padding: '4px 2px',
                 background: '#1e293b',
@@ -78,7 +78,7 @@ export const DebugSimulator: React.FC<DebugSimulatorProps> = ({
               +1 Hour
             </button>
             <button
-              onClick={() => onFastForward(3)}
+              onClick={() => { onFastForward(3); }}
               style={{
                 padding: '4px 2px',
                 background: '#1e293b',
@@ -93,7 +93,7 @@ export const DebugSimulator: React.FC<DebugSimulatorProps> = ({
               +3 Hours
             </button>
             <button
-              onClick={() => onFastForward(8)}
+              onClick={() => { onFastForward(8); }}
               style={{
                 padding: '4px 2px',
                 background: '#1e293b',
@@ -108,7 +108,7 @@ export const DebugSimulator: React.FC<DebugSimulatorProps> = ({
               +8 Hours
             </button>
             <button
-              onClick={() => onFastForward(24)}
+              onClick={() => { onFastForward(24); }}
               style={{
                 padding: '4px 2px',
                 background: '#1e293b',

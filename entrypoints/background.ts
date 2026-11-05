@@ -3,23 +3,25 @@ import type { PokemonState } from '../src/types/pokemon';
 
 export default defineBackground(() => {
   // ── Icon click → toggle overlay visibility on the active tab ──────────────
-  browser.action.onClicked.addListener(async (tab) => {
-    if (!tab.id) return;
+  browser.action.onClicked.addListener((tab) => {
+    void (async () => {
+      if (!tab.id) return;
 
-    // Try sending a toggle message to the content script
-    try {
-      await browser.tabs.sendMessage(tab.id, { type: 'POKEPET_TOGGLE' });
-    } catch {
-      // Content script not yet injected on this tab — inject it manually
+      // Try sending a toggle message to the content script
       try {
-        await browser.scripting.executeScript({
-          target: { tabId: tab.id },
-          files: ['/content-scripts/content.js'],
-        });
-      } catch (e) {
-        console.warn('[PokePet] Could not inject content script:', e);
+        await browser.tabs.sendMessage(tab.id, { type: 'POKEPET_TOGGLE' });
+      } catch {
+        // Content script not yet injected on this tab — inject it manually
+        try {
+          await browser.scripting.executeScript({
+            target: { tabId: tab.id },
+            files: ['/content-scripts/content.js'],
+          });
+        } catch (e) {
+          console.warn('[PokePet] Could not inject content script:', e);
+        }
       }
-    }
+    })();
   });
 
   // ── Background decay sync via alarms ──────────────────────────────────────
@@ -47,10 +49,10 @@ export default defineBackground(() => {
     }
   };
 
-  browser.alarms.create('pokepet_sync', { periodInMinutes: 5 });
+  void browser.alarms.create('pokepet_sync', { periodInMinutes: 5 });
   browser.alarms.onAlarm.addListener((alarm) => {
-    if (alarm.name === 'pokepet_sync') syncDecay();
+    if (alarm.name === 'pokepet_sync') void syncDecay();
   });
 
-  syncDecay();
+  void syncDecay();
 });

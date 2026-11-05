@@ -98,7 +98,11 @@ export const POKEMON_PRESETS: PokemonSpecies[] = [
   },
 ];
 
-export const DEFAULT_POKEMON_SPECIES: PokemonSpecies = POKEMON_PRESETS[0]!;
+const [firstPreset] = POKEMON_PRESETS;
+if (!firstPreset) {
+  throw new Error('POKEMON_PRESETS must not be empty');
+}
+export const DEFAULT_POKEMON_SPECIES: PokemonSpecies = firstPreset;
 
 export interface EvolutionRule {
   fromId: number;

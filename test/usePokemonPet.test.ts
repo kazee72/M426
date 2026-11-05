@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { usePokemonPet } from '../src/hooks/usePokemonPet';
 import * as storage from '../src/utils/storage';
 import { POKEMON_PRESETS, checkEvolution } from '../src/constants/pokemonPresets';
+import type { PokemonSpecies } from '../src/types/pokemon';
 
 vi.mock('../src/utils/storage', async () => {
   const actual = await vi.importActual<typeof import('../src/utils/storage')>('../src/utils/storage');
@@ -27,7 +28,7 @@ describe('usePokemonPet Hook & Evolution', () => {
 
   it('loads initial state from storage', async () => {
     const initialState = storage.createInitialPokemonState();
-    (storage.loadPokemonState as any).mockResolvedValue(initialState);
+    vi.mocked(storage.loadPokemonState).mockResolvedValue(initialState);
 
     const { result } = renderHook(() => usePokemonPet());
 
@@ -45,7 +46,7 @@ describe('usePokemonPet Hook & Evolution', () => {
   it('handles feeding action', async () => {
     const initialState = storage.createInitialPokemonState();
     initialState.needs.hunger = 50;
-    (storage.loadPokemonState as any).mockResolvedValue(initialState);
+    vi.mocked(storage.loadPokemonState).mockResolvedValue(initialState);
 
     const { result } = renderHook(() => usePokemonPet());
 
@@ -65,7 +66,7 @@ describe('usePokemonPet Hook & Evolution', () => {
   it('prevents feeding when sleeping', async () => {
     const initialState = storage.createInitialPokemonState();
     initialState.isSleeping = true;
-    (storage.loadPokemonState as any).mockResolvedValue(initialState);
+    vi.mocked(storage.loadPokemonState).mockResolvedValue(initialState);
 
     const { result } = renderHook(() => usePokemonPet());
 
@@ -85,7 +86,7 @@ describe('usePokemonPet Hook & Evolution', () => {
     const initialState = storage.createInitialPokemonState();
     initialState.needs.happiness = 50;
     initialState.needs.energy = 100;
-    (storage.loadPokemonState as any).mockResolvedValue(initialState);
+    vi.mocked(storage.loadPokemonState).mockResolvedValue(initialState);
 
     const { result } = renderHook(() => usePokemonPet());
 
@@ -103,7 +104,7 @@ describe('usePokemonPet Hook & Evolution', () => {
 
   it('handles change species action', async () => {
     const initialState = storage.createInitialPokemonState();
-    (storage.loadPokemonState as any).mockResolvedValue(initialState);
+    vi.mocked(storage.loadPokemonState).mockResolvedValue(initialState);
 
     const { result } = renderHook(() => usePokemonPet());
 
@@ -112,7 +113,7 @@ describe('usePokemonPet Hook & Evolution', () => {
     });
 
     await act(async () => {
-      await result.current.actions.changeSpecies(POKEMON_PRESETS[1]!);
+      await result.current.actions.changeSpecies(POKEMON_PRESETS[1] as PokemonSpecies);
     });
 
     expect(result.current.state?.species.id).toBe(4);
@@ -120,12 +121,12 @@ describe('usePokemonPet Hook & Evolution', () => {
   });
 
   it('evolves Charmander into Charmeleon upon reaching level 5', async () => {
-    const charmander = POKEMON_PRESETS[1]!; // id: 4
+    const charmander = POKEMON_PRESETS[1] as PokemonSpecies; // id: 4
     const initialState = storage.createInitialPokemonState(charmander);
     initialState.level = 4;
     initialState.experience = 95;
     initialState.maxExperience = 100;
-    (storage.loadPokemonState as any).mockResolvedValue(initialState);
+    vi.mocked(storage.loadPokemonState).mockResolvedValue(initialState);
 
     const { result } = renderHook(() => usePokemonPet());
 
@@ -144,7 +145,7 @@ describe('usePokemonPet Hook & Evolution', () => {
   });
 
   it('checkEvolution returns correct multi-stage evolution', () => {
-    const bulbasaur = POKEMON_PRESETS[2]!; // id: 1
+    const bulbasaur = POKEMON_PRESETS[2] as PokemonSpecies; // id: 1
     expect(checkEvolution(bulbasaur, 3)).toBeNull();
     expect(checkEvolution(bulbasaur, 5)?.name).toBe('ivysaur');
     expect(checkEvolution(bulbasaur, 10)?.name).toBe('venusaur');

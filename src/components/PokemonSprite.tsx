@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import type { PokemonSpecies } from '../types/pokemon';
 import { getPokemonSpriteUrls, POKEBALL_FALLBACK_SVG } from '../utils/sprites';
 
@@ -22,11 +22,13 @@ export const PokemonSprite: React.FC<PokemonSpriteProps> = ({
   const urls = getPokemonSpriteUrls(species);
   const currentSrc = urlIndex < urls.length ? urls[urlIndex] : POKEBALL_FALLBACK_SVG;
 
-  // Reset index when species changes
-  useEffect(() => {
+  const speciesKey = `${species.id}:${species.spriteSlug}`;
+  const [prevSpeciesKey, setPrevSpeciesKey] = useState(speciesKey);
+  if (speciesKey !== prevSpeciesKey) {
+    setPrevSpeciesKey(speciesKey);
     setUrlIndex(0);
     setLoaded(false);
-  }, [species.id, species.spriteSlug]);
+  }
 
   const handleImageError = () => {
     if (urlIndex < urls.length) {
@@ -36,7 +38,7 @@ export const PokemonSprite: React.FC<PokemonSpriteProps> = ({
 
   const handleClick = () => {
     setBouncing(true);
-    setTimeout(() => setBouncing(false), 500);
+    setTimeout(() => { setBouncing(false); }, 500);
     if (onClick) onClick();
   };
 
@@ -133,7 +135,7 @@ export const PokemonSprite: React.FC<PokemonSpriteProps> = ({
         <img
           src={currentSrc}
           alt={species.displayName}
-          onLoad={() => setLoaded(true)}
+          onLoad={() => { setLoaded(true); }}
           onError={handleImageError}
           style={{
             maxWidth: '100%',

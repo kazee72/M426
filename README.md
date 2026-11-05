@@ -44,6 +44,12 @@ The extension reloads automatically when source files change.
 - `public/` - icons and static assets
 - `docker/` - dev container setup
 
+## Documentation
+
+- [docs/DOKUMENTATION_DE.md](docs/DOKUMENTATION_DE.md) - Technical documentation (German, index)
+- [docs/ki-usage.md](docs/ki-usage.md) - KI-usage statement
+- [docs/review1.md](docs/review1.md) - Sprint-Review 1
+
 ## Commands
 
 Run inside the container (`docker compose exec dev sh`):

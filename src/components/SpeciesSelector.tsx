@@ -17,7 +17,7 @@ export const SpeciesSelector: React.FC<SpeciesSelectorProps> = ({
   const [loadingApi, setLoadingApi] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const handleCustomSubmit = async (e: React.FormEvent) => {
+  const handleCustomSubmit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
     const query = customInput.trim().toLowerCase();
     if (!query) return;
@@ -189,7 +189,7 @@ export const SpeciesSelector: React.FC<SpeciesSelectorProps> = ({
 
         {/* Custom Input */}
         <form
-          onSubmit={handleCustomSubmit}
+          onSubmit={(e) => { void handleCustomSubmit(e); }}
           style={{
             paddingTop: '8px',
             borderTop: '1px solid #334155',

@@ -6,7 +6,7 @@ describe("background entrypoint", () => {
     expect(typeof defineBackground).toBe("function");
     const config = defineBackground(() => {
       console.log("test");
-    });
-    expect(config).toEqual({ main: expect.any(Function) });
+    }) as { main: unknown };
+    expect(typeof config.main).toBe("function");
   });
 });

@@ -24,13 +24,19 @@ function useOverlayUiPrefs(initBottom = 100, initRight = 24) {
   const startMouse = useRef({ x: 0, y: 0 });
   const startPos   = useRef({ bottom: 0, right: 0 });
   const visibleRef = useRef(visible);
-  visibleRef.current = visible;
   const posRef = useRef(pos);
-  posRef.current = pos;
+
+  useEffect(() => {
+    visibleRef.current = visible;
+  }, [visible]);
+
+  useEffect(() => {
+    posRef.current = pos;
+  }, [pos]);
 
   useEffect(() => {
     let mounted = true;
-    loadOverlayUiPrefs({ bottom: initBottom, right: initRight, visible: true }).then((prefs) => {
+    void loadOverlayUiPrefs({ bottom: initBottom, right: initRight, visible: true }).then((prefs) => {
       if (!mounted) return;
       setPos(clamp(prefs.bottom, prefs.right));
       setVisible(prefs.visible);
@@ -51,7 +57,7 @@ function useOverlayUiPrefs(initBottom = 100, initRight = 24) {
   const toggleVisible = () => {
     setVisible(v => {
       const next = !v;
-      saveOverlayUiPrefs({ ...posRef.current, visible: next });
+      void saveOverlayUiPrefs({ ...posRef.current, visible: next });
       return next;
     });
   };
@@ -80,7 +86,7 @@ function useOverlayUiPrefs(initBottom = 100, initRight = 24) {
       if (!isDragging.current) return;
       isDragging.current = false;
       setPos(p => {
-        saveOverlayUiPrefs({ ...p, visible: visibleRef.current });
+        void saveOverlayUiPrefs({ ...p, visible: visibleRef.current });
         return p;
       });
     };
@@ -108,10 +114,13 @@ function SpriteImg({ urls, alt, isSleeping }: { urls: string[]; alt: string; isS
   const isFallbackSvg = idx >= urls.length;
   const src = !isFallbackSvg ? (urls[idx] ?? POKEBALL_FALLBACK_SVG) : POKEBALL_FALLBACK_SVG;
 
-  useEffect(() => {
+  const firstUrl = urls[0];
+  const [prevFirstUrl, setPrevFirstUrl] = useState(firstUrl);
+  if (firstUrl !== prevFirstUrl) {
+    setPrevFirstUrl(firstUrl);
     setIdx(0);
     setLoaded(false);
-  }, [urls[0]]);
+  }
 
   const showImg = loaded || isFallbackSvg;
 
@@ -120,7 +129,7 @@ function SpriteImg({ urls, alt, isSleeping }: { urls: string[]; alt: string; isS
       {!showImg && <div className="pokepet-spinner" />}
       <img
         src={src} alt={alt}
-        onLoad={() => setLoaded(true)}
+        onLoad={() => { setLoaded(true); }}
         onError={() => {
           if (idx < urls.length) {
             setIdx(i => i + 1);
@@ -156,12 +165,12 @@ export function PokemonOverlay() {
 
   // Stop bubbling only at the widget boundary (bubble phase = after children handled it)
   // This prevents page-level click listeners from firing, but allows children to work normally
-  const stopBubble = (e: React.MouseEvent) => e.stopPropagation();
+  const stopBubble = (e: React.MouseEvent) => { e.stopPropagation(); };
 
   const handleSpriteClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (didDrag.current) return;
-    actions.pet();
+    void actions.pet();
   };
 
   const handleNameplateClick = (e: React.MouseEvent) => {
@@ -180,7 +189,7 @@ export function PokemonOverlay() {
   const commitNickname = () => {
     setEditingName(false);
     if (nameDraft.trim()) {
-      actions.setCustomNickname(nameDraft);
+      void actions.setCustomNickname(nameDraft);
     }
   };
 
@@ -260,7 +269,7 @@ export function PokemonOverlay() {
                 value={nameDraft}
                 autoFocus
                 maxLength={14}
-                onChange={e => setNameDraft(e.target.value)}
+                onChange={e => { setNameDraft(e.target.value); }}
                 onBlur={commitNickname}
                 onKeyDown={e => {
                   e.stopPropagation();
@@ -367,7 +376,7 @@ export function PokemonOverlay() {
               <div className="pokepet-actions">
                 <button
                   className="pokepet-btn feed"
-                  onClick={(e) => { e.stopPropagation(); actions.feed(); }}
+                  onClick={(e) => { e.stopPropagation(); void actions.feed(); }}
                   disabled={state.isSleeping || state.needs.hunger >= 98}
                   title="Feed (+25 Hunger)"
                 >
@@ -376,7 +385,7 @@ export function PokemonOverlay() {
                 </button>
                 <button
                   className="pokepet-btn play"
-                  onClick={(e) => { e.stopPropagation(); actions.play(); }}
+                  onClick={(e) => { e.stopPropagation(); void actions.play(); }}
                   disabled={state.isSleeping || state.needs.energy < 15}
                   title="Play (+25 Fun, -12 Energy)"
                 >
@@ -385,7 +394,7 @@ export function PokemonOverlay() {
                 </button>
                 <button
                   className={`pokepet-btn rest${state.isSleeping ? ' active' : ''}`}
-                  onClick={(e) => { e.stopPropagation(); actions.toggleSleep(); }}
+                  onClick={(e) => { e.stopPropagation(); void actions.toggleSleep(); }}
                   title={state.isSleeping ? 'Wake up' : 'Rest'}
                 >
                   <span className="pokepet-btn-icon">{state.isSleeping ? '☀️' : '💤'}</span>
@@ -393,7 +402,7 @@ export function PokemonOverlay() {
                 </button>
                 <button
                   className="pokepet-btn cuddle"
-                  onClick={(e) => { e.stopPropagation(); actions.pet(); }}
+                  onClick={(e) => { e.stopPropagation(); void actions.pet(); }}
                   disabled={state.isSleeping}
                   title="Pet (+8 Happiness)"
                 >
@@ -438,7 +447,7 @@ export function PokemonOverlay() {
 
                 <div style={{ display: 'flex', gap: '4px' }}>
                   <button
-                    onClick={(e) => { e.stopPropagation(); actions.fastForwardHours(2); }}
+                    onClick={(e) => { e.stopPropagation(); void actions.fastForwardHours(2); }}
                     title="Simulate 2 hours of offline time"
                     style={{
                       flex: 1,
@@ -454,7 +463,7 @@ export function PokemonOverlay() {
                     ⏳ +2h Decay
                   </button>
                   <button
-                    onClick={(e) => { e.stopPropagation(); actions.resetAllStats(); }}
+                    onClick={(e) => { e.stopPropagation(); void actions.resetAllStats(); }}
                     title="Reset stats to 100%"
                     style={{
                       flex: 1,
@@ -481,8 +490,8 @@ export function PokemonOverlay() {
         <div onMouseDown={stopBubble} onClick={stopBubble}>
           <SpeciesSelector
             currentSpecies={state.species}
-            onClose={() => setShowSelector(false)}
-            onSelectSpecies={actions.changeSpecies}
+            onClose={() => { setShowSelector(false); }}
+            onSelectSpecies={(s) => { void actions.changeSpecies(s); }}
           />
         </div>
       )}

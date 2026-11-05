@@ -8,23 +8,24 @@ A Pokemon browser extension built with WXT and React.
 
 ## Getting started
 
-```
+```bash
 cp .env.example .env
 ```
 
-Set `CHROMIUM=true` in `.env` to run the Chrome/Brave dev server, or leave it unset for Firefox:
+Set `CHROMIUM=true` in `.env` to run the Chrome/Brave dev server, or leave it
+unset for Firefox:
 
-```
+```envrc
 CHROMIUM=true
 ```
 
 Start the dev server:
 
-```
+```bash
 docker compose up --build
 ```
 
-The dev server runs on http://localhost:3000.
+The dev server runs on <http://localhost:3000>.
 
 ## Loading the extension
 
@@ -56,4 +57,6 @@ Run inside the container (`docker compose exec dev sh`):
 
 ## CI
 
-A GitHub Actions workflow (`.github/workflows/ci.yml`) runs type check, tests and both builds on every pull request. The Chrome build is uploaded as a downloadable artifact.
+A GitHub Actions workflow (`.github/workflows/ci.yml`) runs type check, tests
+and both builds on every pull request. The Chrome build is uploaded as a
+downloadable artifact.
